@@ -1,58 +1,60 @@
 // src/components/ChatDashBoard/ChatDashBoard.jsx
-import React, { useEffect, useState, useRef, useCallback, use } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+
 import SidebarItem from "./SidebarItem";
 import MessageAI from "./MessageAI";
 import MessageUser from "./MessageUser";
-import apiClient from "../../api/axiosClient";
 import TypingIndicator from "./TypingIndicator";
-import { useNavigate } from "react-router-dom";
+import ChatInput from "./ChatInput";
+
+import apiClient from "../../api/axiosClient";
 
 const createNewThreadId = () => {
-  if (window.crypto?.randomUUID) {
-    return window.crypto.randomUUID();
-  }
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `thread-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 };
 
 const ChatDashBoard = () => {
+  const navigate = useNavigate();
+
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState("");
+
   const [selectedThread, setSelectedThread] = useState(null);
-  const messagesEndRef = useRef(null);
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState("");
+
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
 
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [name, setName] = useState("UT System Chat");
-  const [intial, setIntial] = useState("UT");
-  const navigate = useNavigate();
+  const [initial, setInitial] = useState("UT");
+
+  const messagesEndRef = useRef(null);
+  const scrollToBottom = () =>
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isThinking]);
 
   const handleSignOut = () => {
-    // clear auth + go to login
     localStorage.removeItem("token");
     navigate("/login");
   };
 
   const handleProfile = () => {
-    navigate("/profile");
     setIsAccountMenuOpen(false);
+    navigate("/profile");
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // handle new chat creation
   const handleNewChat = () => {
     const now = new Date().toISOString();
-
     const newThread = {
       thread_id: createNewThreadId(),
       title: "New chat",
@@ -60,15 +62,15 @@ const ChatDashBoard = () => {
       updated_at: now,
     };
 
-    // select it
     setSelectedThread(newThread);
-
-    // clear current messages / errors
     setMessages([]);
     setMessagesError("");
+    setInput("");
+
+    // Optional: makes it show instantly in the sidebar
+    setHistory((prev) => [...prev, newThread]);
   };
 
-  // Load personal chat history
   const fetchHistory = useCallback(async () => {
     try {
       setLoadingHistory(true);
@@ -79,7 +81,6 @@ const ChatDashBoard = () => {
 
       setHistory(personalHistory);
 
-      // only auto-select if nothing selected yet
       if (!selectedThread && personalHistory.length > 0) {
         setSelectedThread(personalHistory[personalHistory.length - 1]);
       }
@@ -100,35 +101,31 @@ const ChatDashBoard = () => {
     const loadUser = async () => {
       try {
         const res = await apiClient.get("/auth/me");
-
         const username = res?.data?.full_name;
+
         if (username) {
           setName(username);
-
           const initials = username
             .trim()
             .split(/\s+/)
             .map((n) => n[0])
             .join("")
             .toUpperCase();
-
-          setIntial(initials);
+          setInitial(initials);
         } else {
-          // fallback
           setName("UT System Chat");
-          setIntial("UT");
+          setInitial("UT");
         }
       } catch (err) {
         console.error("Failed to load user:", err?.response?.data || err);
         setName("UT System Chat");
-        setIntial("UT");
+        setInitial("UT");
       }
     };
 
     loadUser();
   }, []);
 
-  // Load messages when a thread is selected
   useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedThread?.thread_id) return;
@@ -141,7 +138,6 @@ const ChatDashBoard = () => {
         const res = await apiClient.get(
           `/chats/specific/${selectedThread.thread_id}`
         );
-
         setMessages(res.data.messages || []);
       } catch (err) {
         console.error("Failed to load messages:", err);
@@ -160,29 +156,23 @@ const ChatDashBoard = () => {
     const text = input;
     setInput("");
 
-    // Optimistically add the human message to UI
+    // optimistic user message
     setMessages((prev) => [...prev, { role: "human", content: text }]);
-
-    // AI is thinking...
     setIsThinking(true);
 
     try {
       const res = await apiClient.post(`/chats/${selectedThread.thread_id}`, {
         user_message: text,
       });
-      // AI response returned by backend
-      const aiMessage = res.data.model_response;
 
+      const aiMessage = res.data.model_response;
       setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
       fetchHistory();
     } catch (err) {
       console.error("Failed to send message:", err);
       setMessages((prev) => [
         ...prev,
-        {
-          role: "ai",
-          content: "Sorry, something went wrong with the server.",
-        },
+        { role: "ai", content: "Sorry, something went wrong with the server." },
       ]);
     } finally {
       setIsThinking(false);
@@ -204,19 +194,22 @@ const ChatDashBoard = () => {
     }
   };
 
+  const isEmptyThread =
+    !loadingMessages && !messagesError && messages.length === 0;
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4">
-      <div className="flex h-[90vh] w-full max-w-6xl rounded-3xl border border-slate-800 bg-slate-900/80 shadow-[0_24px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl overflow-hidden text-slate-100">
+    <div className="h-screen w-screen bg-linear-to-b from-[#0f0f10] to-[#141414] text-slate-100 overflow-hidden">
+      <div className="h-full w-full flex">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-slate-800/70 bg-slate-950/40 p-4 flex flex-col">
+        <aside className="w-80 min-w-[20rem] border-r border-slate-800/60 bg-slate-950/20 p-4 flex flex-col">
           <div className="mb-4 relative">
             <button
               type="button"
               onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-              className="w-full flex items-center gap-2 rounded-2xl px-2 py-1.5 hover:bg-slate-900/60 transition"
+              className="w-full flex items-center gap-2 rounded-2xl px-2 py-1.5 hover:bg-slate-900/40 transition"
             >
               <div className="h-9 w-9 rounded-2xl bg-sky-500 flex items-center justify-center text-xs font-semibold shadow-lg shadow-sky-900/40">
-                {intial}
+                {initial}
               </div>
               <div className="flex flex-col items-start">
                 <p className="text-sm font-semibold leading-tight text-slate-50">
@@ -255,15 +248,13 @@ const ChatDashBoard = () => {
             + New Chat
           </button>
 
-          <div className="flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto pr-1">
             {loadingHistory && (
               <div className="text-xs text-slate-400 px-1">Loading chats…</div>
             )}
-
             {historyError && (
               <div className="text-xs text-red-400 px-1">{historyError}</div>
             )}
-
             {!loadingHistory && !historyError && history.length === 0 && (
               <div className="text-xs text-slate-400 px-1">
                 No chats yet. Start a new one!
@@ -282,19 +273,17 @@ const ChatDashBoard = () => {
           </div>
         </aside>
 
-        {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col bg-slate-950/30">
-          {/* Header */}
-          <div className="h-16 border-b border-slate-800/80 px-6 flex items-center justify-between bg-slate-900/60 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-sm font-semibold">
-                  {selectedThread?.title || "UT System Chat"}
-                </h1>
-                <p className="text-[11px] text-slate-400">
-                  Ask about any UT campus, program, or policy.
-                </p>
-              </div>
+        {/* Main */}
+        <main className="flex-1 flex flex-col bg-transparent">
+          {/* Header (transparent – no slab) */}
+          <div className="h-16 px-6 flex items-center justify-between border-b border-slate-800/50 bg-transparent">
+            <div>
+              <h1 className="text-sm font-semibold">
+                {selectedThread?.title || "UT System Chat"}
+              </h1>
+              <p className="text-[11px] text-slate-400">
+                Ask about any UT campus, program, or policy.
+              </p>
             </div>
 
             {selectedThread && (
@@ -303,62 +292,64 @@ const ChatDashBoard = () => {
               </div>
             )}
           </div>
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-linear-to-b from-slate-900/60 to-slate-950/80 custom-scrollbar">
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 pb-28">
             {loadingMessages && (
               <div className="text-sm text-slate-400">Loading messages…</div>
             )}
-
             {messagesError && (
               <div className="text-sm text-red-400">{messagesError}</div>
             )}
 
-            {!loadingMessages && !messagesError && messages.length === 0 && (
-              <div className="flex h-full items-end justify-center pb-6">
-                <p className="text-sm text-slate-400">
-                  <span className="animate-pulse">Start Messaging Below!</span>
-                  <span className="inline-block ml-2 animate-bounce">⬇</span>
-                </p>
+            {isEmptyThread ? (
+              <div className="h-full flex flex-col items-center justify-center gap-6">
+                <div className="text-center">
+                  <h2 className="text-4xl font-semibold text-slate-100">
+                    What’s on your mind?
+                  </h2>
+                  <p className="text-base text-slate-400 mt-2">
+                    Ask about any UT campus, program, or policy.
+                  </p>
+                </div>
+
+                <div className="w-full max-w-[720px]">
+                  <ChatInput
+                    input={input}
+                    setInput={setInput}
+                    onSend={sendMessage}
+                    placeholder="Ask about tuition, majors, housing, or campus life..."
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg, idx) => {
+                  const role = msg.role;
+                  const content = msg.content || "";
+                  if (role === "human")
+                    return <MessageUser key={idx} text={content} />;
+                  return <MessageAI key={idx} text={content} />;
+                })}
+
+                {isThinking && <TypingIndicator />}
+
+                <div ref={messagesEndRef} />
               </div>
             )}
-
-            {messages.map((msg, idx) => {
-              const role = msg.role;
-              const content = msg.content || "";
-
-              if (role === "human") {
-                return <MessageUser key={idx} text={content} />;
-              }
-
-              return <MessageAI key={idx} text={content} />;
-            })}
-            {isThinking && (
-              <div>
-                <TypingIndicator />
-              </div>
-            )}
-            <div ref={messagesEndRef} />
           </div>
-          {/* Input Bar */}
-          <div className="h-20 border-t border-slate-800/80 px-6 flex items-center bg-slate-900/80 backdrop-blur-md">
-            <div className="flex w-full items-center gap-3 bg-slate-900 rounded-2xl px-4 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.65)] border border-slate-800">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                placeholder="Ask about tuition, majors, housing, or campus life..."
-                className="flex-1 bg-transparent outline-none text-sm text-slate-100 placeholder:text-slate-500"
-              />
-              <button
-                onClick={sendMessage}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-500 hover:bg-sky-400 text-white text-sm font-semibold shadow-md shadow-sky-900/40 transition"
-              >
-                ➤
-              </button>
+          {!isEmptyThread && (
+            <div className="sticky bottom-4 z-10 px-6">
+              <div className="max-w-4xl mx-auto">
+                <ChatInput
+                  input={input}
+                  setInput={setInput}
+                  onSend={sendMessage}
+                  placeholder="Ask about tuition, majors, housing, or campus life..."
+                />
+              </div>
             </div>
-          </div>
-          {/*  */}
+          )}
         </main>
       </div>
     </div>

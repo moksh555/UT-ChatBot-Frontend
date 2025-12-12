@@ -13,7 +13,9 @@ const SidebarItem = ({ title, subtitle, active, onClick }) => {
           : "text-slate-400 hover:bg-slate-900/50 hover:text-slate-100",
       ].join(" ")}
     >
-      <div className="text-sm font-medium truncate">{title}</div>
+      <div className="text-sm font-medium leading-snug line-clamp-2">
+        {title}
+      </div>
       {subtitle && (
         <div className="text-[11px] text-slate-500 mt-0.5">{subtitle}</div>
       )}

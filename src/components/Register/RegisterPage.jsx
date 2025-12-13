@@ -32,14 +32,12 @@ const RegisterPage = () => {
     setIsLoading(true);
 
     try {
-      const registerData = await apiClient.post(
-        `${import.meta.env.VITE_BASE_URL}/auth/register`,
-        {
-          full_name: form.name,
-          email: form.email,
-          password: form.password,
-        }
-      );
+      const registerData = await apiClient.post(`/auth/register`, {
+        full_name: form.name,
+        email: form.email,
+        password: form.password,
+      });
+
       console.log("Registration response:", registerData.data);
       navigate("/login");
     } catch (err) {

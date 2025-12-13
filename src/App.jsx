@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./components/Login/LoginPage";
 import RegisterPage from "./components/Register/RegisterPage";
@@ -19,22 +19,31 @@ const ProtectedRoute = ({ authStatus, children }) => {
 const App = () => {
   // authStatus: "loading" | "authed" | "not_authed"
   const [authStatus, setAuthStatus] = useState("loading");
+  const didRun = useRef(false);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/auth/me");
+      console.log("Session check response:", res.data);
+      setAuthStatus("authed");
+      return true;
+    } catch (err) {
+      console.warn("Session check failed:", err);
+      setAuthStatus("not_authed");
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const res = await apiClient.get("/auth/me");
-        // Axios: if we got here, it's a 2xx response
-        console.log("Session check response:", res.data);
-        setAuthStatus("authed");
-      } catch (err) {
-        console.warn("Session check failed:", err);
-        setAuthStatus("not_authed");
-      }
-    };
+    // React 18 StrictMode runs effects twice in dev; prevent double-run
+    if (didRun.current) return;
+    didRun.current = true;
 
-    checkSession();
-  }, []);
+    // run async without returning a promise from useEffect
+    (async () => {
+      await checkSession();
+    })();
+  }, [checkSession]);
 
   return (
     <Routes>
@@ -57,10 +66,11 @@ const App = () => {
           authStatus === "authed" ? (
             <Navigate to="/chat/dashboard" replace />
           ) : (
-            <LoginPage />
+            <LoginPage onLoginSuccess={checkSession} />
           )
         }
       />
+
       <Route
         path="/register"
         element={

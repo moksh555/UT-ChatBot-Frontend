@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 
-const LoginPage = () => {
+const LoginPage = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +18,7 @@ const LoginPage = () => {
     try {
       const response = await apiClient.post(`/auth/login`, { email, password });
       await apiClient.get("/auth/me");
+      if (onLoginSuccess) await onLoginSuccess();
       console.log("Login response:", response.data);
       navigate("/chat/dashboard", { replace: true });
     } catch (err) {

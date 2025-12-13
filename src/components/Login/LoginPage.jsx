@@ -16,17 +16,40 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post(
-        `${import.meta.env.VITE_BASE_URL}/auth/login`,
-        { email, password }
-      );
+      const response = await apiClient.post(`/auth/login`, { email, password });
+      await apiClient.get("/auth/me");
       console.log("Login response:", response.data);
-      localStorage.setItem("token", response.data.access_token);
-      navigate("/chat/dashboard");
+      navigate("/chat/dashboard", { replace: true });
     } catch (err) {
-      setError("Something went wrong. Please try again.");
-      console.error(`Login error: ${err}`);
+      console.error("Login error:", err);
+      setError("Invalid email or password.");
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      // Must include credentials so oauth_state + pkce_verifier cookies are stored
+      const res = await apiClient.get(`/auth/google/login`);
+      console.log(res);
+      console.log(
+        "Google login response:",
+        res.statusText,
+        typeof res.statusText
+      );
+      if (res.statusText !== "OK") {
+        throw new Error("Failed to start Google OAuth");
+      }
+
+      const auth_url = res.data.auth_url;
+      window.location.href = auth_url;
+    } catch (err) {
+      console.error("Google login error:", err);
+      setError("Google sign-in failed. Please try again.");
       setIsLoading(false);
     }
   };
@@ -55,6 +78,14 @@ const LoginPage = () => {
             <p className="mb-6 text-xs text-slate-400">
               Use your registered email and password.
             </p>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="mb-4 inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white border border-slate-700 shadow-lg transition active:scale-[0.99] hover:bg-slate-700 disabled:opacity-60"
+            >
+              Continue with Google
+            </button>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-1">

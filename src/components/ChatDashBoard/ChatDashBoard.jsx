@@ -7,7 +7,6 @@ import MessageAI from "./MessageAI";
 import MessageUser from "./MessageUser";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
-
 import apiClient from "../../api/axiosClient";
 
 const createNewThreadId = () => {
@@ -43,9 +42,14 @@ const ChatDashBoard = () => {
     scrollToBottom();
   }, [messages, isThinking]);
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (err) {
+      console.warn("Logout failed:", err);
+    } finally {
+      window.location.replace("/login");
+    }
   };
 
   const handleProfile = () => {

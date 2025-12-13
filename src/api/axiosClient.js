@@ -3,35 +3,19 @@ import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_URL,
+  withCredentials: true, // ALWAYS send cookies
 });
 
-// Interceptor to attach JWT if needed
+// ✅ Cookie-only auth: do NOT attach Authorization headers from localStorage
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token", "");
-
-  // Skip attaching JWT for login or register endpoints
-  if (
-    config.url.includes("/auth/login") ||
-    config.url.includes("/auth/register")
-  ) {
-    return config;
-  }
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   return config;
 });
 
+// ✅ Don't hard-redirect on 401 here.
+// Let the UI decide (ProtectedRoute / auth check).
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem("token");
-      // optional: maybe also clear other user state
-      window.location.href = "/login";
-    }
     return Promise.reject(error);
   }
 );

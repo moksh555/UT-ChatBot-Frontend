@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
+import GoogleLoginButton from "../Miscellaneous/GoogleLoginButton";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -57,6 +58,27 @@ const RegisterPage = () => {
       }
 
       setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setError("");
+    setIsLoading(true);
+    try {
+      // Must include credentials so oauth_state + pkce_verifier cookies are stored
+      const res = await apiClient.get(`/auth/google/login`);
+
+      if (res.statusText !== "OK") {
+        throw new Error("Failed to start Google OAuth");
+      }
+
+      const auth_url = res.data.auth_url;
+      window.location.href = auth_url;
+    } catch (err) {
+      console.error("Google registration error:", err);
+      setError("Google sign-up failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +192,13 @@ const RegisterPage = () => {
               >
                 {isLoading ? "Creating account…" : "Register"}
               </button>
+
+              <GoogleLoginButton
+                beforeLoadingText="Sign up with Google"
+                loadingText="Redirecting…"
+                handleSubmit={handleGoogleRegister}
+                isLoading={isLoading}
+              />
             </form>
 
             {/* Footer */}

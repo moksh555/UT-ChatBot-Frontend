@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
+import GoogleLoginButton from "../Miscellaneous/GoogleLoginButton";
 
 const LoginPage = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
@@ -36,12 +37,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     try {
       // Must include credentials so oauth_state + pkce_verifier cookies are stored
       const res = await apiClient.get(`/auth/google/login`);
-      console.log(res);
-      console.log(
-        "Google login response:",
-        res.statusText,
-        typeof res.statusText
-      );
+
       if (res.statusText !== "OK") {
         throw new Error("Failed to start Google OAuth");
       }
@@ -51,6 +47,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     } catch (err) {
       console.error("Google login error:", err);
       setError("Google sign-in failed. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -79,14 +76,6 @@ const LoginPage = ({ onLoginSuccess }) => {
             <p className="mb-6 text-xs text-slate-400">
               Use your registered email and password.
             </p>
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-              className="mb-4 inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white border border-slate-700 shadow-lg transition active:scale-[0.99] hover:bg-slate-700 disabled:opacity-60"
-            >
-              Continue with Google
-            </button>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-1">
@@ -136,6 +125,12 @@ const LoginPage = ({ onLoginSuccess }) => {
               >
                 {isLoading ? "Signing in…" : "Sign in"}
               </button>
+              <GoogleLoginButton
+                beforeLoadingText="Sign in with Google"
+                loadingText="Redirecting…"
+                handleSubmit={handleGoogleLogin}
+                isLoading={isLoading}
+              />
             </form>
 
             <div className="mt-5 flex items-center justify-between text-xs text-slate-400">

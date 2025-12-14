@@ -120,7 +120,7 @@ const ChatDashBoard = () => {
     try {
       setIsDeleting(true);
 
-      await apiClient.delete(`/chats/${threadId}`);
+      await apiClient.delete(`/chats/delete/${threadId}`);
 
       // remove from history
       setHistory((prev) => prev.filter((t) => t.thread_id !== threadId));

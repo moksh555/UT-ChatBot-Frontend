@@ -8,6 +8,7 @@ import MessageUser from "./MessageUser";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
 import apiClient from "../../api/axiosClient";
+import ConfirmDialog from "../Miscellaneous/ConfirmDialog";
 
 const createNewThreadId = () => {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -33,6 +34,21 @@ const ChatDashBoard = () => {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [name, setName] = useState("UT System Chat");
   const [initial, setInitial] = useState("UT");
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // store the thread object
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const requestDeleteThread = (thread) => {
+    setDeleteTarget(thread);
+    setDeleteOpen(true);
+  };
+
+  const cancelDeleteThread = () => {
+    if (isDeleting) return;
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+  };
 
   const messagesEndRef = useRef(null);
   const scrollToBottom = () =>
@@ -96,9 +112,39 @@ const ChatDashBoard = () => {
     }
   }, [selectedThread]);
 
+  const confirmDeleteThread = async () => {
+    if (!deleteTarget?.thread_id) return;
+
+    const threadId = deleteTarget.thread_id;
+
+    try {
+      setIsDeleting(true);
+
+      await apiClient.delete(`/chats/${threadId}`);
+
+      // remove from history
+      setHistory((prev) => prev.filter((t) => t.thread_id !== threadId));
+
+      // if deleted thread is currently open, clear main panel
+      if (selectedThread?.thread_id === threadId) {
+        setSelectedThread(null);
+        setMessages([]);
+        setMessagesError("");
+        setInput("");
+      }
+
+      cancelDeleteThread();
+    } catch (err) {
+      console.error("Failed to delete thread:", err);
+      // optional: show toast or inline error
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   useEffect(() => {
     fetchHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
@@ -272,6 +318,7 @@ const ChatDashBoard = () => {
                 subtitle={formatUpdatedAt(item.updated_at)}
                 active={selectedThread?.thread_id === item.thread_id}
                 onClick={() => setSelectedThread(item)}
+                onDelete={() => requestDeleteThread(item)}
               />
             ))}
           </div>
@@ -356,6 +403,18 @@ const ChatDashBoard = () => {
           )}
         </main>
       </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Delete chat?"
+        description={`This will permanently delete "${
+          deleteTarget?.title || "Untitled chat"
+        }".`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+        onCancel={cancelDeleteThread}
+        onConfirm={confirmDeleteThread}
+      />
     </div>
   );
 };
